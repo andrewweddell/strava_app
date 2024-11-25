@@ -1,0 +1,77 @@
+.app-container {
+  display: flex;
+  flex-direction: row;
+  height: 100vh;
+}
+
+.map-container {
+  flex: 1;
+  height: 100%;
+}
+
+.table-container {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+h1, h2 {
+  text-align: center;
+}
+
+.modern-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  color: #333;
+}
+
+.modern-table th, .modern-table td {
+  padding: 12px;
+  text-align: center;
+}
+
+.modern-table th {
+  background-color: #4CAF50;
+  color: white;
+  border-bottom: 2px solid #ddd;
+}
+
+.modern-table tbody tr {
+  border-bottom: 1px solid #ddd;
+}
+
+.modern-table tbody tr:hover {
+  background-color: #f1f1f1;
+  cursor: pointer;
+}
+
+.selected-row {
+  background-color: #e0f7fa !important;
+  font-weight: bold;
+}
+
+.weather-summary {
+  padding: 10px;
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+.weather-summary p {
+  margin: 5px 0;
+}
+
+.stars {
+  display: inline-block;
+}
+
+.star {
+  font-size: 16px;
+  color: #ccc;
+}
+
+.star.filled {
+  color: #ffd700; /* Gold color for filled stars */
+}
