@@ -1,9 +1,25 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./App.css";
+
+// Helper to convert wind direction in degrees to cardinal directions
+const getCardinalDirection = (deg) => {
+  const directions = [
+    "North",
+    "North-East",
+    "East",
+    "South-East",
+    "South",
+    "South-West",
+    "West",
+    "North-West",
+  ];
+  const index = Math.round(deg / 45) % 8;
+  return directions[index];
+};
 
 // Star component to display rating
 const Stars = ({ rating }) => {
@@ -20,92 +36,68 @@ const Stars = ({ rating }) => {
 
 function App() {
   const [segments, setSegments] = useState([]);
-  const [selectedSegment, setSelectedSegment] = useState(null); // Track the selected segment
+  const [selectedDay, setSelectedDay] = useState(null); // Selected day
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Custom icon for markers
   const customIcon = new L.Icon({
-    iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png", // Replace with your preferred marker icon URL
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
     iconSize: [40, 40],
   });
 
-  // Convert wind direction from degrees to cardinal direction
-  const getCardinalDirection = (degrees) => {
-    const directions = [
-      "North",
-      "North-East",
-      "East",
-      "South-East",
-      "South",
-      "South-West",
-      "West",
-      "North-West",
-    ];
-    const index = Math.round(degrees / 45) % 8;
-    return directions[index];
-  };
-
   useEffect(() => {
-    const fetchSegmentsWithWeather = async () => {
+    const fetchSegments = async () => {
       try {
-        const response = await axios.get("http://127.0.0.1:5000/segments_with_weather");
-        setSegments(response.data);
+        const segmentsResponse = await axios.get("http://127.0.0.1:5000/segments_with_weather");
+        setSegments(segmentsResponse.data);
+        setSelectedDay(Object.keys(segmentsResponse.data[0].forecast)[0]); // Default to the first day
       } catch (err) {
-        setError(err.message || "An error occurred");
-        console.error("Error fetching segments:", err);
+        setError("Failed to fetch segments.");
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchSegmentsWithWeather();
+    fetchSegments();
   }, []);
 
-  // Calculate KOM rating
   const getKOMRating = (bearing, wind) => {
-    if (!wind || !bearing) return 1; // Default to poor if data is missing
-    const windBearing = (wind.deg + 180) % 360; // Adjust wind direction to where it is going
+    if (!wind || !bearing) return 1;
+    const windBearing = (wind.deg + 180) % 360;
     const windSpeed = wind.speed || 0;
 
     const angleDiff = Math.abs(bearing - windBearing);
     const effectiveAngle = angleDiff > 180 ? 360 - angleDiff : angleDiff;
 
-    if (effectiveAngle <= 45 && windSpeed > 5) return 5; // Strong tailwind
-    if (effectiveAngle <= 45 && windSpeed <= 5) return 4; // Light tailwind
-    if (effectiveAngle > 135) return 1; // Strong headwind
-    if (effectiveAngle > 90) return 2; // Moderate headwind or strong crosswind
-    return 3; // Neutral
+    if (effectiveAngle <= 45 && windSpeed > 5) return 5;
+    if (effectiveAngle <= 45 && windSpeed <= 5) return 4;
+    if (effectiveAngle > 135) return 1;
+    if (effectiveAngle > 90) return 2;
+    return 3;
   };
 
-  // Add KOM rating to segments
-  const enrichedSegments = segments.map((segment) => {
-    const rating = getKOMRating(segment.bearing, segment.wind);
-    const windDirection = segment.wind?.deg ? getCardinalDirection(segment.wind.deg) : "Unknown";
-    const windSpeedKmh = (segment.wind?.speed || 0) * 3.6; // Convert m/s to km/h
-    return { ...segment, rating, windDirection, windSpeedKmh };
-  });
+  // Map and then sort segments based on the rating (best to worst)
+  const enrichedSegments = segments
+    .map((segment) => {
+      const wind = segment.forecast[selectedDay]?.[0] || {}; // Get the first forecasted wind entry for the selected day
+      const rating = getKOMRating(segment.bearing, wind);
+      return {
+        ...segment,
+        rating,
+        windDirection: wind.deg ? getCardinalDirection(wind.deg) : "Unknown",
+        windSpeedKmh: (wind.speed || 0) * 3.6,
+      };
+    })
+    .sort((a, b) => b.rating - a.rating); // Sorting from best (highest) to worst (lowest)
 
-  // Sort segments by KOM rating
-  const sortedSegments = enrichedSegments.sort((a, b) => b.rating - a.rating);
-
-  // Get weather summary from the first segment (assuming all segments share similar weather)
-  const weatherSummary =
-    segments.length > 0
-      ? {
-          location: segments[0].city || "Unknown",
-          windSpeedKmh: (segments[0].wind?.speed || 0) * 3.6,
-          windDirection: segments[0].wind?.deg
-            ? `${segments[0].wind.deg}° (${getCardinalDirection(segments[0].wind.deg)})`
-            : "Unknown",
-        }
-      : null;
-
-  // Highlight selected segment on the map
-  const MapFocus = ({ segment }) => {
-    const map = useMap();
-    if (segment && segment.start_latlng) {
-      map.flyTo(segment.start_latlng, 15); // Fly to the selected segment with zoom
-    }
-    return null;
+  const handleDayClick = (day) => {
+    setSelectedDay(day); // Update selected day
   };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   if (error) {
     return <div>Error: {error}</div>;
@@ -113,80 +105,97 @@ function App() {
 
   return (
     <div className="app-container">
-      <div className="map-container">
+      <div className="controls">
         <h1>Strava Tailwind App</h1>
-        <MapContainer center={[-33.9048907, 151.2675154]} zoom={13} style={{ height: "100%", width: "100%" }}>
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          {sortedSegments.map((segment) => (
-            <React.Fragment key={segment.id}>
-              {/* Draw segment as a polyline */}
-              {segment.start_latlng && segment.end_latlng && (
-                <Polyline
-                  positions={[segment.start_latlng, segment.end_latlng]}
-                  pathOptions={{
-                    color: segment.id === selectedSegment?.id ? "red" : "blue", // Highlight selected segment
-                    weight: 5,
-                  }}
-                />
-              )}
-              {/* Add start marker */}
-              <Marker
-                position={segment.start_latlng}
-                icon={customIcon}
-                eventHandlers={{
-                  click: () => setSelectedSegment(segment), // Update selected segment on marker click
-                }}
-              >
-                <Popup>
-                  <b>{segment.name}</b>
-                  <p>Bearing: {segment.bearing.toFixed(2)}°</p>
-                  <p>Wind Speed: {segment.windSpeedKmh.toFixed(2)} km/h</p>
-                  <p>Wind Direction: {segment.windDirection}</p>
-                  <p><strong>KOM Rating:</strong> <Stars rating={segment.rating} /></p>
-                </Popup>
-              </Marker>
-            </React.Fragment>
-          ))}
-          <MapFocus segment={selectedSegment} />
-        </MapContainer>
       </div>
-      <div className="table-container">
-        <h2>KOM Opportunities</h2>
-        {weatherSummary && (
-          <div className="weather-summary">
-            <p><strong>Weather Location:</strong> {weatherSummary.location}</p>
-            <p><strong>Wind Speed:</strong> {weatherSummary.windSpeedKmh.toFixed(2)} km/h</p>
-            <p><strong>Wind Direction:</strong> {weatherSummary.windDirection}</p>
-          </div>
-        )}
-        <table className="modern-table">
-          <thead>
-            <tr>
-              <th>Segment Name</th>
-              <th>City</th>
-              <th>Bearing</th>
-              <th>Wind Speed (km/h)</th>
-              <th>Wind Direction</th>
-              <th>KOM Rating</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedSegments.map((segment) => (
-              <tr
-                key={segment.id}
-                className={segment.id === selectedSegment?.id ? "selected-row" : ""}
-                onClick={() => setSelectedSegment(segment)} // Highlight segment on table row click
-              >
-                <td>{segment.name}</td>
-                <td>{segment.city || "Unknown"}</td>
-                <td>{segment.bearing.toFixed(2)}°</td>
-                <td>{segment.windSpeedKmh.toFixed(2)}</td>
-                <td>{segment.windDirection}</td>
-                <td><Stars rating={segment.rating} /></td>
+      <div className="content">
+        <div className="forecast-container">
+          <h2>5-Day Weather Forecast</h2>
+          <table className="forecast-table">
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>Wind Direction</th>
+                <th>Wind Speed (km/h)</th>
               </tr>
+            </thead>
+            <tbody>
+              {segments.length > 0 &&
+                Object.keys(segments[0].forecast).map((day, index) => {
+                  const wind = segments[0].forecast[day][0] || {};
+                  const windSpeedKmh = (wind.speed || 0) * 3.6;
+                  const windDirection = wind.deg ? getCardinalDirection(wind.deg) : "Unknown";
+
+                  return (
+                    <tr
+                      key={index}
+                      onClick={() => handleDayClick(day)}
+                      className={day === selectedDay ? "selected" : ""}
+                    >
+                      <td>{day}</td>
+                      <td>{windDirection}</td>
+                      <td>{windSpeedKmh.toFixed(2)}</td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+        </div>
+        <div className="segments-container">
+          <h2>Segments for {selectedDay}</h2>
+          <table className="segments-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Bearing</th>
+                <th>Wind Direction</th>
+                <th>Wind Speed (km/h)</th>
+                <th>Rating</th>
+              </tr>
+            </thead>
+            <tbody>
+              {enrichedSegments.map((segment) => (
+                <tr key={segment.id}>
+                  <td>{segment.name}</td>
+                  <td>{segment.bearing.toFixed(2)}°</td>
+                  <td>{segment.windDirection}</td>
+                  <td>{segment.windSpeedKmh.toFixed(2)}</td>
+                  <td>
+                    <Stars rating={segment.rating} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="map-container">
+          <MapContainer
+            center={[-33.9048907, 151.2675154]}
+            zoom={13}
+            style={{ height: "100%", width: "100%" }}
+          >
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            {segments.map((segment) => (
+              <React.Fragment key={segment.id}>
+                {segment.start_latlng && segment.end_latlng && (
+                  <Polyline
+                    positions={[segment.start_latlng, segment.end_latlng]}
+                    pathOptions={{
+                      color: "blue",
+                      weight: 5,
+                    }}
+                  />
+                )}
+                <Marker position={segment.start_latlng} icon={customIcon}>
+                  <Popup>
+                    <b>{segment.name}</b>
+                    <p>Bearing: {segment.bearing.toFixed(2)}°</p>
+                  </Popup>
+                </Marker>
+              </React.Fragment>
             ))}
-          </tbody>
-        </table>
+          </MapContainer>
+        </div>
       </div>
     </div>
   );
