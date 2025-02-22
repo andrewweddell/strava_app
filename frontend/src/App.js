@@ -5,28 +5,14 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./App.css";
 
-// Helper to convert wind direction in degrees to cardinal directions
-const getCardinalDirection = (deg) => {
-  const directions = [
-    "North",
-    "North-East",
-    "East",
-    "South-East",
-    "South",
-    "South-West",
-    "West",
-    "North-West",
-  ];
-  const index = Math.round(deg / 45) % 8;
-  return directions[index];
-};
-
 // Star component to display rating
 const Stars = ({ rating }) => {
   const stars = [];
+  // Assuming rating is a value between 0 and 5, you can round or floor as needed.
+  const filledStars = Math.round(rating);
   for (let i = 0; i < 5; i++) {
     stars.push(
-      <span key={i} className={i < rating ? "star filled" : "star"}>
+      <span key={i} className={i < filledStars ? "star filled" : "star"}>
         ★
       </span>
     );
@@ -36,7 +22,7 @@ const Stars = ({ rating }) => {
 
 function App() {
   const [segments, setSegments] = useState([]);
-  const [selectedDay, setSelectedDay] = useState(null); // Selected day
+  const [selectedDay, setSelectedDay] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -50,7 +36,11 @@ function App() {
       try {
         const segmentsResponse = await axios.get("http://127.0.0.1:5000/segments_with_weather");
         setSegments(segmentsResponse.data);
-        setSelectedDay(Object.keys(segmentsResponse.data[0].forecast)[0]); // Default to the first day
+        // Default selected day from the first segment's forecast, if available.
+        if (segmentsResponse.data.length > 0) {
+          const forecastDays = Object.keys(segmentsResponse.data[0].forecast);
+          setSelectedDay(forecastDays[0]);
+        }
       } catch (err) {
         setError("Failed to fetch segments.");
         console.error(err);
@@ -62,37 +52,8 @@ function App() {
     fetchSegments();
   }, []);
 
-  const getKOMRating = (bearing, wind) => {
-    if (!wind || !bearing) return 1;
-    const windBearing = (wind.deg + 180) % 360;
-    const windSpeed = wind.speed || 0;
-
-    const angleDiff = Math.abs(bearing - windBearing);
-    const effectiveAngle = angleDiff > 180 ? 360 - angleDiff : angleDiff;
-
-    if (effectiveAngle <= 45 && windSpeed > 5) return 5;
-    if (effectiveAngle <= 45 && windSpeed <= 5) return 4;
-    if (effectiveAngle > 135) return 1;
-    if (effectiveAngle > 90) return 2;
-    return 3;
-  };
-
-  // Map and then sort segments based on the rating (best to worst)
-  const enrichedSegments = segments
-    .map((segment) => {
-      const wind = segment.forecast[selectedDay]?.[0] || {}; // Get the first forecasted wind entry for the selected day
-      const rating = getKOMRating(segment.bearing, wind);
-      return {
-        ...segment,
-        rating,
-        windDirection: wind.deg ? getCardinalDirection(wind.deg) : "Unknown",
-        windSpeedKmh: (wind.speed || 0) * 3.6,
-      };
-    })
-    .sort((a, b) => b.rating - a.rating); // Sorting from best (highest) to worst (lowest)
-
   const handleDayClick = (day) => {
-    setSelectedDay(day); // Update selected day
+    setSelectedDay(day);
   };
 
   if (loading) {
@@ -102,6 +63,11 @@ function App() {
   if (error) {
     return <div>Error: {error}</div>;
   }
+
+  // No additional client-side calculations are needed.
+  // The backend has enriched each segment with wind_rating, wind_direction, and wind_speed_kmh.
+  // Optionally, you can sort segments here if desired.
+  const sortedSegments = segments.sort((a, b) => (b.wind_rating || 0) - (a.wind_rating || 0));
 
   return (
     <div className="app-container">
@@ -122,10 +88,10 @@ function App() {
             <tbody>
               {segments.length > 0 &&
                 Object.keys(segments[0].forecast).map((day, index) => {
+                  // Display forecast information from the first segment
                   const wind = segments[0].forecast[day][0] || {};
-                  const windSpeedKmh = (wind.speed || 0) * 3.6;
-                  const windDirection = wind.deg ? getCardinalDirection(wind.deg) : "Unknown";
-
+                  const windSpeedKmh = wind.speed ? (wind.speed * 3.6).toFixed(2) : "0.00";
+                  const windDirection = wind.deg ? wind.deg : "Unknown";
                   return (
                     <tr
                       key={index}
@@ -134,7 +100,7 @@ function App() {
                     >
                       <td>{day}</td>
                       <td>{windDirection}</td>
-                      <td>{windSpeedKmh.toFixed(2)}</td>
+                      <td>{windSpeedKmh}</td>
                     </tr>
                   );
                 })}
@@ -154,14 +120,14 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {enrichedSegments.map((segment) => (
+              {sortedSegments.map((segment) => (
                 <tr key={segment.id}>
                   <td>{segment.name}</td>
                   <td>{segment.bearing.toFixed(2)}°</td>
-                  <td>{segment.windDirection}</td>
-                  <td>{segment.windSpeedKmh.toFixed(2)}</td>
+                  <td>{segment.wind_direction || "Unknown"}</td>
+                  <td>{segment.wind_speed_kmh !== undefined ? segment.wind_speed_kmh : "0.00"}</td>
                   <td>
-                    <Stars rating={segment.rating} />
+                    <Stars rating={segment.wind_rating || 0} />
                   </td>
                 </tr>
               ))}

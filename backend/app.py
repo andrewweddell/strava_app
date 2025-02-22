@@ -129,7 +129,6 @@ def compute_segment_bearing(segment):
                 avg_br = average_bearing(coords)
                 print("Debug - Average bearing from polyline:", avg_br)
                 return avg_br
-        # Fallback: if polyline data is absent or insufficient, return 0.
         return 0
 
     lat_start, lon_start = start_latlng
@@ -153,6 +152,21 @@ def calculate_wind_rating(segment_bearing, wind_from):
     # Map 0° difference to 5 and 180° difference to 0 using a linear scale.
     rating = 5 * (1 - angle_diff / 180)
     return rating
+
+def get_cardinal_direction(deg):
+    """Convert a degree measurement into a cardinal direction."""
+    directions = [
+        "North",
+        "North-East",
+        "East",
+        "South-East",
+        "South",
+        "South-West",
+        "West",
+        "North-West",
+    ]
+    index = round(deg / 45) % 8
+    return directions[index]
 
 def process_forecast_data(forecast_data):
     """Extract and organize forecast data by day."""
@@ -191,7 +205,7 @@ def get_segments_with_weather():
 
     enriched_segments = []
     for segment in segments:
-        # Compute the bearing using our new helper with debug prints.
+        # Compute the bearing.
         bearing = compute_segment_bearing(segment)
         segment["bearing"] = bearing
 
@@ -209,15 +223,19 @@ def get_segments_with_weather():
             forecast_data = forecast_response.json()
             segment["forecast"] = process_forecast_data(forecast_data)
 
-            # Calculate wind rating using the first available forecast entry.
-            rating = None
+            # Calculate wind rating and enrich with wind direction and speed.
             if forecast_data.get("list"):
                 current_forecast = forecast_data["list"][0]
                 wind = current_forecast.get("wind", {})
                 if "deg" in wind:
                     rating = calculate_wind_rating(bearing, wind["deg"])
-            segment["wind_rating"] = rating
-
+                    segment["wind_rating"] = rating
+                    segment["wind_direction"] = get_cardinal_direction(wind["deg"])
+                    segment["wind_speed_kmh"] = round(wind.get("speed", 0) * 3.6, 2)
+                else:
+                    segment["wind_rating"] = None
+                    segment["wind_direction"] = "Unknown"
+                    segment["wind_speed_kmh"] = 0
             enriched_segments.append(segment)
         else:
             print(f"Error fetching weather forecast: {forecast_response.text}")
