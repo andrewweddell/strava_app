@@ -1,77 +1,152 @@
+/* Global Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Base Styles */
+html, body {
+  height: 100%;
+  font-family: 'Roboto', sans-serif;
+  background: #f4f7f6;
+  color: #333;
+  line-height: 1.6;
+}
+
+/* App Container (Header + Content) */
 .app-container {
   display: flex;
-  flex-direction: row;
-  height: 100vh;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
-.map-container {
-  flex: 1;
-  height: 100%;
-}
-
-.table-container {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-}
-
-h1, h2 {
+/* Header / Controls */
+.controls {
+  background: #2a9d8f;
+  color: #fff;
+  padding: 1rem;
   text-align: center;
+  font-size: 1.8rem;
+  font-weight: bold;
 }
 
-.modern-table {
+/* Main Content: Centered with 10% margin on each side */
+.content {
+  width: 80%;
+  margin: 0 auto;
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px; /* Vertical spacing between sections */
+}
+
+/* Row for the two tables side by side */
+.tables-row {
+  display: flex;
+  flex-direction: row;
+  gap: 20px; /* Horizontal spacing between the two tables */
+}
+
+/* Forecast & Segments Containers (each ~half the row) */
+.forecast-container,
+.segments-container {
+  flex: 1;
+  background-color: #fafafa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: auto;
+  padding: 10px;
+}
+
+/* Tables */
+table {
   width: 100%;
   border-collapse: collapse;
-  font-family: Arial, sans-serif;
-  font-size: 14px;
-  color: #333;
+  margin: 0 auto;
+  background-color: #fff;
 }
 
-.modern-table th, .modern-table td {
-  padding: 12px;
+table th,
+table td {
+  padding: 8px;
   text-align: center;
+  border: 1px solid #eee;
+  font-size: 0.85rem;
 }
 
-.modern-table th {
-  background-color: #4CAF50;
-  color: white;
-  border-bottom: 2px solid #ddd;
+table th {
+  background-color: #264653;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
 }
 
-.modern-table tbody tr {
-  border-bottom: 1px solid #ddd;
-}
-
-.modern-table tbody tr:hover {
+table tbody tr:hover {
   background-color: #f1f1f1;
   cursor: pointer;
 }
 
+/* Selected Row */
 .selected-row {
-  background-color: #e0f7fa !important;
+  background-color: #e0f7fa;
   font-weight: bold;
 }
 
-.weather-summary {
-  padding: 10px;
-  background-color: #f9f9f9;
+/* Map Container: Square aspect ratio */
+.map-container {
+  width: 100%;
+  aspect-ratio: 1 / 1; /* Ensures the container is a square */
   border: 1px solid #ddd;
   border-radius: 4px;
-  margin-bottom: 20px;
-}
-.weather-summary p {
-  margin: 5px 0;
+  position: relative;  /* Required for absolute positioning inside */
+  overflow: hidden;
 }
 
+/* Let the Leaflet map fill the .map-container */
+.map-container .leaflet-container {
+  width: 100%;
+  height: 100%;
+  position: absolute; /* Fill the parent container */
+  top: 0;
+  left: 0;
+}
+
+/* Star Rating */
 .stars {
   display: inline-block;
 }
-
 .star {
-  font-size: 16px;
+  font-size: 18px;
   color: #ccc;
+  transition: color 0.3s;
+}
+.star.filled {
+  color: #ffd700;
 }
 
-.star.filled {
-  color: #ffd700; /* Gold color for filled stars */
+/* Responsive Design */
+.tables-row {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+}
+
+/* Ensure each container takes equal space */
+.forecast-container,
+.segments-container,
+.extra-container {
+  flex: 1;
+  background-color: #fafafa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: auto;
+  padding: 10px;
+}
+
+/* Responsive: Stack columns on smaller screens */
+@media (max-width: 768px) {
+  .tables-row {
+    flex-direction: column;
+  }
 }
