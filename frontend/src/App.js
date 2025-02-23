@@ -95,7 +95,7 @@ function App() {
   return (
     <div className="app-container">
       <div className="controls">
-        <h1>Strava Tailwind App</h1>
+        <h1>Top Segments</h1>
       </div>
       <div className="content">
         {/* Weather Forecast Section */}
