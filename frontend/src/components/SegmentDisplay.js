@@ -45,7 +45,7 @@ const SegmentDisplay = ({ user }) => {
   useEffect(() => {
     const fetchSegments = async () => {
       try {
-        const response = await axios.get(`http://127.0.0.1:5000/segments_with_weather`, {
+        const response = await axios.get(`https://strava-app-l46p.onrender.com/segments_with_weather`, {
           params: { user }
         });
         const data = response.data;
