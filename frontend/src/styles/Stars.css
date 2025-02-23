@@ -1,0 +1,12 @@
+.stars {
+    display: inline-block;
+  }
+  
+  .star {
+    color: lightgray;
+    font-size: 20px;
+  }
+  
+  .star.filled {
+    color: gold;
+  }

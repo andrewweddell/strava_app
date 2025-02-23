@@ -1,0 +1,32 @@
+.forecast-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+  }
+  
+  .forecast-table th, .forecast-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+  }
+  
+  .forecast-table .selected {
+    background-color: #f0f8ff;
+    font-weight: bold;
+  }
+  
+  .accordion-toggle {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    background: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+  
+  .accordion-toggle:hover {
+    background: #0056b3;
+  }
