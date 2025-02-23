@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const backendUrl = "http://127.0.0.1:5000";
+const backendUrl = "https://strava-app-l46p.onrender.com";
 
 export const fetchSegmentsWithWeather = async () => {
   const response = await axios.get(`${backendUrl}/segments_with_weather`);
