@@ -5,6 +5,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./App.css";
 
+
+
 // Star component to display rating
 const Stars = ({ rating }) => {
   const stars = [];
@@ -31,6 +33,7 @@ const MapHandler = ({ position }) => {
 };
 
 function App() {
+  
   const [segments, setSegments] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
   const [loading, setLoading] = useState(true);
