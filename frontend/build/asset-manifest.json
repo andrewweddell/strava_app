@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/strava_app/static/css/main.3363ae61.css",
+    "main.js": "/strava_app/static/js/main.94dce098.js",
+    "static/js/453.9333c92c.chunk.js": "/strava_app/static/js/453.9333c92c.chunk.js",
+    "index.html": "/strava_app/index.html",
+    "main.3363ae61.css.map": "/strava_app/static/css/main.3363ae61.css.map",
+    "main.94dce098.js.map": "/strava_app/static/js/main.94dce098.js.map",
+    "453.9333c92c.chunk.js.map": "/strava_app/static/js/453.9333c92c.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.3363ae61.css",
+    "static/js/main.94dce098.js"
+  ]
+}
