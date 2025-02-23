@@ -16,52 +16,59 @@ const getWindDirectionName = (deg) => {
   return directions[index];
 };
 
-// Map Handler to Move to Selected Segment
+// Map handler to move to selected segment
 const MapHandler = ({ position }) => {
   const map = useMap();
   useEffect(() => {
     if (position) {
-      map.setView(position, 15); // Zoom level 15 for a closer view
+      map.setView(position, 15);
     }
   }, [position, map]);
   return null;
 };
 
 const SegmentDisplay = ({ user }) => {
+  // segments will be incrementally added during loading
   const [segments, setSegments] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showAll, setShowAll] = useState(false); // Toggle state for accordion
+  const [showAll, setShowAll] = useState(false);
 
   const customIcon = new L.Icon({
     iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
     iconSize: [40, 40],
   });
 
-  // Fetch segments with weather data
+  // Fetch segments and simulate incremental streaming by adding them one-by-one.
   useEffect(() => {
     const fetchSegments = async () => {
       try {
         const response = await axios.get(`http://127.0.0.1:5000/segments_with_weather`, {
           params: { user }
         });
-        setSegments(response.data);
-
-        // Default selected day from the first segment's forecast, if available.
-        if (response.data.length > 0) {
-          const forecastDays = Object.keys(response.data[0].forecast);
+        const data = response.data;
+        // Set default forecast day from the first segment.
+        if (data.length > 0) {
+          const forecastDays = Object.keys(data[0].forecast);
           setSelectedDay(forecastDays[0]);
         }
+        // Incrementally add each segment with a slight delay.
+        data.forEach((segment, index) => {
+          setTimeout(() => {
+            setSegments(prev => [...prev, segment]);
+            if (index === data.length - 1) {
+              setLoading(false);
+            }
+          }, index * 50); // 50ms delay per segment to simulate streaming
+        });
       } catch (err) {
         setError("Failed to fetch segments.");
         console.error(err);
-      } finally {
         setLoading(false);
       }
     };
-
     fetchSegments();
   }, [user]);
 
@@ -79,15 +86,42 @@ const SegmentDisplay = ({ user }) => {
     setShowAll(!showAll);
   };
 
+  // While loading, display a code-styled loading page with the segments as they arrive.
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div
+        style={{
+          backgroundColor: "black",
+          color: "#00ff00",
+          fontFamily: "monospace",
+          padding: "20px",
+          height: "100vh",
+          overflowY: "auto"
+        }}
+      >
+        <pre>
+          <code>
+{segments.map((segment, index) => {
+  const start = segment.start_latlng 
+    ? `[${segment.start_latlng.join(", ")}]` 
+    : "N/A";
+  const end = segment.end_latlng 
+    ? `[${segment.end_latlng.join(", ")}]` 
+    : "N/A";
+  return `Segment ${segment.id}: ${start} -> ${end}\n`;
+})}
+          </code>
+        </pre>
+        <div>Loading segments data...</div>
+      </div>
+    );
   }
 
   if (error) {
     return <div>Error: {error}</div>;
   }
 
-  // Sort segments by wind rating
+  // Sort segments by wind rating for the main page.
   const sortedSegments = segments.sort((a, b) => (b.wind_rating || 0) - (a.wind_rating || 0));
   const top5Segments = sortedSegments.slice(0, 5);
   const otherSegments = sortedSegments.slice(5);
@@ -115,7 +149,7 @@ const SegmentDisplay = ({ user }) => {
                 const windDirection = wind.deg ? getWindDirectionName(wind.deg) : "Unknown";
                 return (
                   <tr
-                    key={index}
+                    key={`${day}-${index}`}
                     onClick={() => handleDayClick(day)}
                     className={day === selectedDay ? "selected" : ""}
                   >
@@ -141,9 +175,9 @@ const SegmentDisplay = ({ user }) => {
             </tr>
           </thead>
           <tbody>
-            {top5Segments.map((segment) => (
+            {top5Segments.map((segment, index) => (
               <tr
-                key={segment.id}
+                key={`${segment.id}-${index}`}
                 onClick={() => handleSegmentClick(segment)}
                 style={{ cursor: "pointer" }}
               >
@@ -165,9 +199,9 @@ const SegmentDisplay = ({ user }) => {
           {showAll && (
             <table className="segments-table">
               <tbody>
-                {otherSegments.map((segment) => (
+                {otherSegments.map((segment, index) => (
                   <tr
-                    key={segment.id}
+                    key={`${segment.id}-${index}`}
                     onClick={() => handleSegmentClick(segment)}
                     style={{ cursor: "pointer" }}
                   >
@@ -193,8 +227,8 @@ const SegmentDisplay = ({ user }) => {
         >
           <MapHandler position={selectedPosition} />
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          {segments.map((segment) => (
-            <React.Fragment key={segment.id}>
+          {segments.map((segment, index) => (
+            <React.Fragment key={`${segment.id}-${index}`}>
               {segment.start_latlng && segment.end_latlng && (
                 <Polyline
                   positions={[segment.start_latlng, segment.end_latlng]}
